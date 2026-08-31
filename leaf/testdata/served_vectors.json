@@ -1,0 +1,162 @@
+[
+  {
+    "name": "basic_prod",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "created_at_micros",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00.123456Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "created_at_nanos_truncated",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00.123456Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "accessed_at_millis",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58.120Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "accessed_at_micros",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58.123456Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "accessed_at_nanos",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58.123456789Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "accessed_at_absent",
+    "served": "{\"accessed_at\":null,\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "optionals_absent",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":null,\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":null,\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "dept_empty_string",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "dept_unicode",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Sûreté 信頼性チーム\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "dept_escapes",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"line\\nbreak \\\"quoted\\\" \\\\ \\t \\u0007\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "reason_unspecified",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"unspecified\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "reason_incident",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"incident_response\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "workspace_id_tagged",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":\"wrkspc_01PaGUP2rbg1XDh7Z9W1CEpd\"}"
+  },
+  {
+    "name": "basic_local",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_local_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_local_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "timestamps_pre_epoch",
+    "served": "{\"accessed_at\":\"1969-12-31T23:59:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"1969-12-31T23:59:59Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "timestamps_pre_epoch_fractional",
+    "served": "{\"accessed_at\":\"1969-12-31T23:59:58.123456789Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"1969-12-31T23:59:59.123456Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "resource_details_empty",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"\",\"parent\":null,\"type\":\"\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "workspace_strings_empty",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":\"\"}"
+  },
+  {
+    "name": "created_at_unset_epoch",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"1970-01-01T00:00:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "reason_csae_report",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"csae_report\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "reason_policy_violation",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"policy_violation_investigation\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_basic_prod",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_reason_csae_report",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"csae_report\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_reason_policy_violation",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"policy_violation_investigation\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_optionals_absent",
+    "served": "{\"accessed_at\":null,\"accessor_department\":null,\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":null,\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_dept_empty_string",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_dept_unicode_escapes",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Sûreté 信頼性チーム line\\nbreak \\\"quoted\\\" \\\\ \\t \",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_created_at_nanos_truncated",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00.123456Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_accessed_at_millis",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58.120Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_accessed_at_micros",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58.123456Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_accessed_at_nanos",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58.123456789Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_workspace_id_tagged",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":\"wrkspc_01PaGUP2rbg1XDh7Z9W1CEpd\"}"
+  },
+  {
+    "name": "preserve_basic_local",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_local_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_local_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_timestamps_pre_epoch",
+    "served": "{\"accessed_at\":\"1969-12-31T23:59:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"1969-12-31T23:59:59Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_resource_details_empty",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"\",\"parent\":null,\"type\":\"\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "preserve_workspace_id_empty",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":\"\"}"
+  },
+  {
+    "name": "preserve_created_at_unset_epoch",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"1970-01-01T00:00:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"safety_review\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":null}"
+  },
+  {
+    "name": "pair_access_same_values",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"policy_violation_investigation\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"anthropic_access\",\"workspace_id\":\"wrkspc_01PaGUP2rbg1XDh7Z9W1CEpd\"}"
+  },
+  {
+    "name": "pair_preserve_same_values",
+    "served": "{\"accessed_at\":\"2025-07-08T18:39:58Z\",\"accessor_department\":\"Trust & Safety\",\"actor\":{\"email_address\":null,\"type\":\"anthropic_actor\"},\"created_at\":\"2025-07-08T18:40:00Z\",\"id\":\"activity_01GPXmAhizavrUuoXNn3tzeA\",\"organization_id\":\"org_015gtSHLz269eTwgrH8NX5yk\",\"organization_uuid\":\"25f6429a-3293-49bf-afed-cb312911554b\",\"reason_code\":\"policy_violation_investigation\",\"resource_details\":{\"id\":\"msg_01HXAMPLE12345678\",\"parent\":null,\"type\":\"message\"},\"type\":\"cmek_preserve\",\"workspace_id\":\"wrkspc_01PaGUP2rbg1XDh7Z9W1CEpd\"}"
+  }
+]

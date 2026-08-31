@@ -1,0 +1,4 @@
+# build output
+/axt-verify
+# default state file written by `axt-verify run`
+axt-verify.state
