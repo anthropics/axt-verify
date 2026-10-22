@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/anthropics/axt-verify/checkpoint"
@@ -508,10 +509,13 @@ func (s *session) verifyEvent(ev leaf.Event) (outcome, *EventFailure, error) {
 	if *ev.Index >= s.latest.Size {
 		return pending, nil, nil
 	}
-	return s.verifyInclusion(ev.ID, *ev.Index, ev.Hash())
+	return s.verifyInclusion(ev.ID, *ev.Index, ev.Hashes())
 }
 
-func (s *session) verifyInclusion(id string, idx uint64, leafHash []byte) (outcome, *EventFailure, error) {
+// verifyInclusion checks the log's proof for idx against each of leafHashes,
+// a served event's (leaf.Event.Hashes) or a pending record's; one match
+// verifies it.
+func (s *session) verifyInclusion(id string, idx uint64, leafHashes [][]byte) (outcome, *EventFailure, error) {
 	p, err := s.v.Client.Inclusion(s.ctx, idx)
 	// The checkpoint covers idx, so the proof must exist — but an inclusion
 	// replica behind the checkpoint read answers 404 for a freshly covered
@@ -554,11 +558,26 @@ func (s *session) verifyInclusion(id string, idx uint64, leafHash []byte) (outco
 	if err != nil {
 		return 0, nil, err
 	}
-	if err := checkpoint.VerifyInclusion(cp, idx, leafHash, p.Hashes); err != nil {
-		//nolint:nilerr // a bad proof is a finding about this event, not a pass-aborting error
-		return 0, &EventFailure{ID: id, Index: &idx, Reason: "the event as served is not what the log committed at its leaf index: " + err.Error()}, nil
+	mismatch, bound := inclusionMismatch(cp, idx, leafHashes, p.Hashes)
+	if bound {
+		return verified, nil, nil
 	}
-	return verified, nil, nil
+	// A bad proof is a finding about this event, not a pass-aborting error.
+	return 0, &EventFailure{ID: id, Index: &idx, Reason: "the event as served is not what the log committed at its leaf index: " + mismatch}, nil
+}
+
+// inclusionMismatch reports whether the proof binds one of leafHashes and,
+// when it binds none, every hash's mismatch in the order tried.
+func inclusionMismatch(cp checkpoint.Checkpoint, idx uint64, leafHashes, proof [][]byte) (mismatch string, bound bool) {
+	var tried []string
+	for _, h := range leafHashes {
+		err := checkpoint.VerifyInclusion(cp, idx, h, proof)
+		if err == nil {
+			return "", true
+		}
+		tried = append(tried, err.Error())
+	}
+	return strings.Join(tried, "; "), false
 }
 
 // VerifyCheckpoint fetches and verifies the latest checkpoint and, given a
@@ -805,19 +824,35 @@ func coalesce(raws []json.RawMessage) ([]servedEvent, []EventFailure) {
 // serving of the same id can ride on the earlier success: different bytes go
 // back through the full inclusion check, and an index the serving path has
 // since withdrawn is a finding by itself — the index is not committed in the
-// leaf, so withdrawing it changes no hash to catch.
+// leaf, so withdrawing it changes no hash to catch. Only the serving's
+// inclusion hashes may match here, never leaf.Event.RecordedFrom's wider
+// set: a match here skips verification, and a match in sameServing does not.
 func recheckDone(d DoneEvent, ev leaf.Event) (reverify bool, failure *EventFailure) {
 	switch {
 	case d.Index != nil && ev.Index == nil:
 		return false, &EventFailure{ID: ev.ID, Index: d.Index, Reason: fmt.Sprintf("verified at leaf index %d on an earlier run and is now served without a leaf index", *d.Index)}
 	case d.Index != nil && ev.Index != nil && *d.Index != *ev.Index:
 		return false, &EventFailure{ID: ev.ID, Index: d.Index, Reason: fmt.Sprintf("verified at leaf index %d on an earlier run and is now served at leaf index %d", *d.Index, *ev.Index)}
-	case !bytes.Equal(d.LeafHash, ev.Hash()):
+	case !isOneOf(d.LeafHash, ev.Hashes()):
 		// An entry with no hash vouches for nothing, so it re-verifies too.
 		return true, nil
 	default:
 		return false, nil
 	}
+}
+
+// isOneOf reports whether a recorded leaf hash is one of hashes. For an
+// event with no user_profile_id, a file written by a release that knew only
+// 0x01 holds the second.
+func isOneOf(recorded []byte, hashes [][]byte) bool {
+	return slices.ContainsFunc(hashes, func(h []byte) bool { return bytes.Equal(recorded, h) })
+}
+
+// sameServing reports whether the stored pending entry old was recorded from
+// the serving pe was built from: ev when the event is in hand, else the
+// stored entry itself. A match supplies no hash to the inclusion check.
+func sameServing(old, pe PendingEvent, ev *leaf.Event) bool {
+	return old.Index == pe.Index && (ev == nil || ev.RecordedFrom(old.LeafHash))
 }
 
 // eventID names an unparseable event for the report.
@@ -882,13 +917,15 @@ func (v *Verifier) Run(ctx context.Context, st *State) (Report, error) {
 
 	// settle records a verified/not-logged/pending outcome in the report
 	// and the state; an event pending past the grace period becomes a
-	// failure.
-	settle := func(id string, oc outcome, failure *EventFailure, pe PendingEvent) {
-		// A pending event's stored hash and index are what a later pass
+	// failure. ev is the served event pe was built from; nil when pe is the
+	// stored entry itself.
+	settle := func(id string, oc outcome, failure *EventFailure, pe PendingEvent, ev *leaf.Event) {
+		// A pending event's stored hashes and index are what a later pass
 		// verifies it from, so a rewrite before coverage must not quietly
-		// replace them.
+		// replace them. (An entry a 0x01-only release wrote is rewritten
+		// with the serving's own hashes once sameServing passes.)
 		if failure == nil && oc == pending {
-			if old, ok := st.Feed.Pending[id]; ok && (!bytes.Equal(old.LeafHash, pe.LeafHash) || old.Index != pe.Index) {
+			if old, ok := st.Feed.Pending[id]; ok && !sameServing(old, pe, ev) {
 				failure = &EventFailure{ID: id, Index: &old.Index, Reason: fmt.Sprintf("was served at leaf index %d awaiting a checkpoint and is now served differently (leaf index %d)", old.Index, pe.Index)}
 			}
 		}
@@ -901,7 +938,7 @@ func (v *Verifier) Run(ctx context.Context, st *State) (Report, error) {
 		// different bytes would otherwise reset the grace deadline every
 		// time, so alternating tampered and honest servings never expire.
 		if failure == nil && oc == verified {
-			if old, ok := st.Feed.Pending[id]; ok && (!bytes.Equal(old.LeafHash, pe.LeafHash) || old.Index != pe.Index) {
+			if old, ok := st.Feed.Pending[id]; ok && !sameServing(old, pe, ev) {
 				failure = &EventFailure{ID: id, Index: &old.Index, Reason: fmt.Sprintf("was served awaiting a checkpoint at leaf index %d, and the serving that now verifies differs from it (leaf index %d)", old.Index, pe.Index)}
 			}
 		}
@@ -1054,11 +1091,15 @@ func (v *Verifier) Run(ctx context.Context, st *State) (Report, error) {
 				failure = &EventFailure{ID: ev.ID, Index: ev.Index, Reason: "re-served with different content than the copy that verified, and the log serves no proof for it"}
 				oc = 0
 			}
-			pe := PendingEvent{LeafHash: ev.Hash(), CreatedAt: created, FirstSeen: now}
+			hashes := ev.Hashes()
+			pe := PendingEvent{LeafHash: hashes[0], CreatedAt: created, FirstSeen: now}
+			if len(hashes) > 1 {
+				pe.LegacyLeafHash = hashes[1]
+			}
 			if ev.Index != nil {
 				pe.Index = *ev.Index
 			}
-			settle(ev.ID, oc, failure, pe)
+			settle(ev.ID, oc, failure, pe, &ev)
 		}
 		if readErr != nil {
 			break
@@ -1087,7 +1128,7 @@ func (v *Verifier) Run(ctx context.Context, st *State) (Report, error) {
 		q.AfterID = pg.LastID
 	}
 	// Pending events the feed pass did not list again (outside the window,
-	// or a truncated pass) are checked from their stored leaf hash.
+	// or a truncated pass) are checked from their stored leaf hashes.
 	for _, id := range slices.Sorted(maps.Keys(st.Feed.Pending)) {
 		if listed[id] || readErr != nil {
 			continue
@@ -1096,7 +1137,7 @@ func (v *Verifier) Run(ctx context.Context, st *State) (Report, error) {
 		oc, failure := pending, (*EventFailure)(nil)
 		if pe.Index < s.latest.Size {
 			var err error
-			if oc, failure, err = s.verifyInclusion(id, pe.Index, pe.LeafHash); err != nil {
+			if oc, failure, err = s.verifyInclusion(id, pe.Index, pe.hashes()); err != nil {
 				// Breaking off here leaves the pass as incomplete as a cut
 				// feed read does, so it takes the same exit: the deferral
 				// below has to run before this returns.
@@ -1104,7 +1145,7 @@ func (v *Verifier) Run(ctx context.Context, st *State) (Report, error) {
 				continue
 			}
 		}
-		settle(id, oc, failure, pe)
+		settle(id, oc, failure, pe, nil)
 	}
 	// A pass that did not read the feed to the end — a page cap, or a read
 	// that broke off — cannot conclude that no copy carrying the index

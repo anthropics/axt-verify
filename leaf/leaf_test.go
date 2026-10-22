@@ -4,6 +4,7 @@
 package leaf
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -45,11 +46,13 @@ func TestVectors_RenderIsIdentityOnServedForm(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if ev.Entry[0] != SchemaVersion {
-				t.Fatalf("version byte %#x", ev.Entry[0])
+			// No vector carries a user_profile_id, so each has both entries
+			// over the same bytes.
+			if got := string(ev.Entry); got != string(SchemaVersionV2)+v.ExpectedJSON {
+				t.Fatalf("0x02 entry\n got: %#x %s\nwant: %s", ev.Entry[0], ev.Entry[1:], v.ExpectedJSON)
 			}
-			if got := string(ev.Entry[1:]); got != v.ExpectedJSON {
-				t.Fatalf("render mismatch\n got: %s\nwant: %s", got, v.ExpectedJSON)
+			if got := string(ev.Legacy); got != string(SchemaVersion)+v.ExpectedJSON {
+				t.Fatalf("0x01 entry\n got: %q\nwant: %s", got, v.ExpectedJSON)
 			}
 			if ev.Index == nil || *ev.Index != 7 {
 				t.Fatalf("index = %v", ev.Index)
@@ -68,8 +71,72 @@ func TestVectors_RenderIsIdentityOnServedForm(t *testing.T) {
 	}
 }
 
-// The worked example in Anthropic's Compliance API documentation for the
-// transparency log (§ Leaf canonicalization).
+// served_vectors_v2.json is the same kind of file for field set v2: each "served"
+// value is an event as the feed serves it, most with a user_profile_id, and
+// "served_v1" is the same event's canonical JSON over the eleven keys.
+func TestVectorsV2_BothEntries(t *testing.T) {
+	raw, err := os.ReadFile("testdata/served_vectors_v2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vectors []struct {
+		Name     string `json:"name"`
+		Served   string `json:"served"`
+		ServedV1 string `json:"served_v1"`
+	}
+	if err := json.Unmarshal(raw, &vectors); err != nil {
+		t.Fatal(err)
+	}
+	if len(vectors) < 12 {
+		t.Fatalf("only %d vectors; testdata truncated?", len(vectors))
+	}
+	withID, withoutID := 0, 0
+	for _, v := range vectors {
+		t.Run(v.Name, func(t *testing.T) {
+			served := strings.TrimSuffix(v.Served, "}") +
+				`,"workspace_uuid":"b6ce2143-1083-d4a7-247c-17530f55a076","transparency_log_leaf_index":7}`
+			ev, err := Parse([]byte(served))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(ev.Entry); got != string(SchemaVersionV2)+v.Served {
+				t.Fatalf("0x02 entry\n got: %#x %s\nwant: %s", ev.Entry[0], ev.Entry[1:], v.Served)
+			}
+			var doc map[string]json.RawMessage
+			if err := json.Unmarshal([]byte(v.Served), &doc); err != nil {
+				t.Fatal(err)
+			}
+			if _, has := doc[UserProfileIDKey]; has {
+				withID++
+				if ev.Legacy != nil {
+					t.Fatalf("an event with a user_profile_id has no 0x01 entry, got %q", ev.Legacy)
+				}
+				if v.Served == v.ServedV1 {
+					t.Fatal("the vector's 0x01 form must lack the member its served form has")
+				}
+				// What a release that knew only 0x01 would have recorded for this event.
+				if got := string(ev.withheld); got != string(SchemaVersion)+v.ServedV1 {
+					t.Fatalf("0x01 rendering of an event with a user_profile_id\n got: %q\nwant: %s", got, v.ServedV1)
+				}
+				return
+			}
+			withoutID++
+			if got := string(ev.Legacy); got != string(SchemaVersion)+v.ServedV1 {
+				t.Fatalf("0x01 entry\n got: %q\nwant: %s", got, v.ServedV1)
+			}
+			if v.Served != v.ServedV1 {
+				t.Fatal("without a user_profile_id both versions have the same canonical JSON")
+			}
+		})
+	}
+	if withID < 8 || withoutID < 2 {
+		t.Fatalf("%d vectors with a user_profile_id and %d without; the file no longer covers both", withID, withoutID)
+	}
+}
+
+// The documentation's worked example (§ Leaf canonicalization), an event with
+// no user_profile_id, rebuilt here under both version bytes; the documentation
+// publishes the 0x01 hash only.
 func TestSpecWorkedExample(t *testing.T) {
 	served := `{
 	  "id": "activity_01GPXmAhizavrUuoXNn3tzeA",
@@ -91,11 +158,21 @@ func TestSpecWorkedExample(t *testing.T) {
 		t.Fatal(err)
 	}
 	const wantJSON = `{"accessed_at":"2025-07-08T18:39:58Z","accessor_department":"Trust & Safety","actor":{"email_address":null,"type":"anthropic_actor"},"created_at":"2025-07-08T18:40:00Z","id":"activity_01GPXmAhizavrUuoXNn3tzeA","organization_id":"org_015gtSHLz269eTwgrH8NX5yk","organization_uuid":"25f6429a-3293-49bf-afed-cb312911554b","reason_code":"safety_review","resource_details":{"id":"msg_01HXAMPLE12345678","parent":null,"type":"message"},"type":"anthropic_access","workspace_id":"wrkspc_01PaGUP2rbg1XDh7Z9W1CEpd"}`
-	if got := string(ev.Entry[1:]); got != wantJSON {
-		t.Fatalf("canonical JSON\n got: %s\nwant: %s", got, wantJSON)
+	if got := string(ev.Entry); got != string(SchemaVersionV2)+wantJSON {
+		t.Fatalf("0x02 entry\n got: %#x %s\nwant: %s", ev.Entry[0], ev.Entry[1:], wantJSON)
 	}
-	if got, want := base64.StdEncoding.EncodeToString(ev.Hash()), "6ro7vTcFq+sYDZiiGvZaFetUIoMSLig3DGDrCKK1HFU="; got != want {
-		t.Fatalf("leaf hash = %s, want %s", got, want)
+	if got := string(ev.Legacy); got != string(SchemaVersion)+wantJSON {
+		t.Fatalf("0x01 entry\n got: %q\nwant: %s", got, wantJSON)
+	}
+	want := []string{"1iKC1LbEakcNTfp8OwW4LtItQu4+/K/pzaDDLVIA5XE=", "6ro7vTcFq+sYDZiiGvZaFetUIoMSLig3DGDrCKK1HFU="}
+	hashes := ev.Hashes()
+	if len(hashes) != len(want) {
+		t.Fatalf("%d leaf hashes, want %d", len(hashes), len(want))
+	}
+	for i := range want {
+		if got := base64.StdEncoding.EncodeToString(hashes[i]); got != want[i] {
+			t.Fatalf("leaf hash %d = %s, want %s", i, got, want[i])
+		}
 	}
 	if ev.ID != "activity_01GPXmAhizavrUuoXNn3tzeA" || ev.OrganizationUUID != "25f6429a-3293-49bf-afed-cb312911554b" {
 		t.Fatalf("id/org = %q/%q", ev.ID, ev.OrganizationUUID)
@@ -103,12 +180,73 @@ func TestSpecWorkedExample(t *testing.T) {
 	if ev.Index == nil || *ev.Index != 17 {
 		t.Fatalf("index = %v", ev.Index)
 	}
+	// The same event served with a user_profile_id: the 0x02 entry alone.
+	with, err := Parse([]byte(strings.Replace(served, `"reason_code": "safety_review",`, `"reason_code": "safety_review", "user_profile_id": "uprof_01H7Z9W1CEpdPaGUP2rbg1XD",`, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := base64.StdEncoding.EncodeToString(with.Hash()), "onAlpkDfdXmHPvbffiTpHAgBacf/mJCzTfNDibDrYp4="; got != want || with.Legacy != nil {
+		t.Fatalf("with a user_profile_id: leaf hash = %s, want %s; 0x01 entry %q", got, want, with.Legacy)
+	}
+}
+
+// A user_profile_id is one member added before workspace_id to the same
+// event's 0x01 entry, written as the other strings are, and the event then has
+// no 0x01 entry. The empty string is a value, not an absence.
+func TestParse_UserProfileIDIsOneAddedMember(t *testing.T) {
+	for _, tc := range []struct{ name, served, member string }{
+		{"plain", `"uprof_01H7Z9W1CEpdPaGUP2rbg1XD"`, `"uprof_01H7Z9W1CEpdPaGUP2rbg1XD"`},
+		{"empty", `""`, `""`},
+		{"escapes", "\"q\\\" bs\\\\ nl\\n bel\\u0007 ls\\u2028 sl\\/\"", "\"q\\\" bs\\\\ nl\\n bel\\u0007 ls\u2028 sl/\""},
+		{"beyond the BMP", `"\ud83d\ude00"`, "\"\U0001F600\""},
+	} {
+		for _, typ := range Types() {
+			base := `{"type":"` + typ + `","id":"activity_a","workspace_id":"wrkspc_a"`
+			plain, err := Parse([]byte(base + "}"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			ev, err := Parse([]byte(base + `,"user_profile_id":` + tc.served + "}"))
+			if err != nil {
+				t.Fatalf("%s, %s: %v", tc.name, typ, err)
+			}
+			cut := bytes.LastIndex(plain.Legacy, []byte(`,"workspace_id":`))
+			want := "\x02" + string(plain.Legacy[1:cut]) + `,"user_profile_id":` + tc.member + string(plain.Legacy[cut:])
+			if string(ev.Entry) != want || ev.Legacy != nil {
+				t.Fatalf("%s, %s:\n got: %q / %q\nwant: %q and no 0x01 entry", tc.name, typ, ev.Entry, ev.Legacy, want)
+			}
+		}
+	}
+}
+
+// RecordedFrom accepts a serving's own hashes and, for an event with a
+// user_profile_id, the 0x01 hash over its eleven keys, which Hashes withholds.
+func TestRecordedFrom(t *testing.T) {
+	const base = `{"type":"anthropic_access","id":"activity_a"`
+	plain, err := Parse([]byte(base + "}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	with, err := Parse([]byte(base + `,"user_profile_id":"uprof_a"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	olderRelease := plain.Hashes()[1]
+	if len(with.Hashes()) != 1 || !with.RecordedFrom(with.Hash()) || !with.RecordedFrom(olderRelease) {
+		t.Fatalf("an event with a user_profile_id: hashes %x", with.Hashes())
+	}
+	if !plain.RecordedFrom(plain.Hash()) || !plain.RecordedFrom(olderRelease) {
+		t.Fatal("an event with no user_profile_id: one of its own two hashes was refused")
+	}
+	if with.RecordedFrom(plain.Hash()) || with.RecordedFrom(nil) || plain.RecordedFrom([]byte{}) {
+		t.Fatal("accepted a hash no release records from this serving")
+	}
 }
 
 func TestParse_AbsentAndNullEnterAsNull(t *testing.T) {
 	for _, served := range []string{
 		`{"type":"cmek_preserve"}`,
-		`{"type":"cmek_preserve","id":null,"actor":null,"resource_details":null,"transparency_log_leaf_index":null}`,
+		`{"type":"cmek_preserve","id":null,"actor":null,"resource_details":null,"user_profile_id":null,"transparency_log_leaf_index":null}`,
 	} {
 		ev, err := Parse([]byte(served))
 		if err != nil {
@@ -129,6 +267,24 @@ func TestParse_AbsentAndNullEnterAsNull(t *testing.T) {
 	}
 	if !strings.Contains(string(ev.Entry), `"actor":{"email_address":null,"type":"anthropic_actor"}`) {
 		t.Fatalf("got %s", ev.Entry[1:])
+	}
+}
+
+// A member of resource_details outside the field set is ignored, as a
+// top-level one is: derived-data reads serve derived_from there, and no field
+// set commits it.
+func TestParse_IgnoresAnUnknownResourceDetailsMember(t *testing.T) {
+	const head = `{"type":"anthropic_access","id":"activity_a","resource_details":{"type":"derived_data","id":""`
+	plain, err := Parse([]byte(head + "}}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	extra, err := Parse([]byte(head + `,"derived_from":{"resources":[{"type":"message","id":"msg_a"}],"part_index":0,"part_count":1,"part_group":"pg_a"}}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(extra.Entry) != string(plain.Entry) || string(extra.Legacy) != string(plain.Legacy) {
+		t.Fatalf("derived_from changed the entries:\n got: %q / %q\nwant: %q / %q", extra.Entry, extra.Legacy, plain.Entry, plain.Legacy)
 	}
 }
 
@@ -195,6 +351,11 @@ func TestParse_Rejects(t *testing.T) {
 		"case-variant actor member":    `{"type":"anthropic_access","actor":{"Type":"anthropic_actor"}}`,
 		"case-variant resource member": `{"type":"anthropic_access","resource_details":{"ID":"msg_1"}}`,
 		"case-variant index":           `{"type":"anthropic_access","Transparency_Log_Leaf_Index":3}`,
+		// user_profile_id decides whether a 0x01 entry exists, so it is read
+		// as strictly as the rest.
+		"profile id number":    `{"type":"anthropic_access","user_profile_id":7}`,
+		"profile id repeated":  `{"type":"anthropic_access","user_profile_id":"uprof_a","user_profile_id":"uprof_b"}`,
+		"profile id case fold": `{"type":"anthropic_access","User_Profile_ID":"uprof_a"}`,
 	}
 	for name, served := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -204,6 +365,14 @@ func TestParse_Rejects(t *testing.T) {
 				t.Fatalf("err = %v, want ErrUnknownType", err)
 			}
 		})
+	}
+}
+
+// A row read only for its type is refused for a case-variant of
+// user_profile_id too, whatever product the row belongs to.
+func TestTypeOf_RefusesACaseVariantUserProfileID(t *testing.T) {
+	if typ, err := TypeOf([]byte(`{"type":"user_login","User_Profile_Id":"uprof_a"}`)); err == nil {
+		t.Fatalf("accepted, type %q", typ)
 	}
 }
 

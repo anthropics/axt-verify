@@ -4,13 +4,21 @@
 // Package leaf rebuilds Access Transparency transparency-log leaf entries
 // from events exactly as the Compliance API activity feed serves them.
 //
-// A leaf entry is SchemaVersion followed by RFC 8785 (JCS) canonical JSON
-// over field set v1 — eleven keys projected from the served event. Its
-// RFC 6962 leaf hash is SHA-256(0x00 || entry). The projection rules are
-// the public transparency-log specification's § Leaf canonicalization:
-// values are copied byte for byte, a key the served event omits enters as
-// null, keys outside the set are ignored, and actor.email_address and
-// resource_details.parent are always null under schema version 0x01.
+// A leaf entry is a schema version byte followed by RFC 8785 (JCS)
+// canonical JSON over that version's field set, projected from the served
+// event. Version 0x01 is field set v1, eleven keys. Version 0x02 is field
+// set v2: the same eleven plus user_profile_id, present only when the event
+// has one. This package rebuilds the 0x02 entry for every event and, for an
+// event with no user_profile_id, the 0x01 entry as well; such an event
+// verifies against either, because both commit the same eleven values. An
+// event that carries a user_profile_id has the 0x02 entry alone: no 0x01
+// entry commits one. An entry's RFC 6962 leaf hash is
+// SHA-256(0x00 || entry). Field set v1's projection rules are the public
+// transparency-log specification's § Leaf canonicalization: values are
+// copied byte for byte, an omitted key enters as null, keys outside the set
+// are ignored, and actor.email_address and resource_details.parent are
+// always null. Field set v2 keeps them; its one added key is left out, never
+// null.
 package leaf
 
 import (
@@ -31,15 +39,22 @@ import (
 // SchemaVersion is the leaf-entry version byte for field set v1.
 const SchemaVersion byte = 0x01
 
+// SchemaVersionV2 is the leaf-entry version byte for field set v2: v1's
+// eleven keys plus user_profile_id when the event has one.
+const SchemaVersionV2 byte = 0x02
+
+// UserProfileIDKey is the served key field set v2 adds.
+const UserProfileIDKey = "user_profile_id"
+
 // IndexKey is the served key carrying an event's position in its
 // organization's log; null when the event has no leaf.
 const IndexKey = "transparency_log_leaf_index"
 
 var types = []string{"anthropic_access", "cmek_preserve"}
 
-// Types returns schema version 0x01's closed event-type list. An event of
-// any other type cannot be a 0x01 leaf: new types ship under a new version
-// byte and need a newer verifier.
+// Types returns the closed event-type list schema versions 0x01 and 0x02
+// share. An event of any other type cannot be a leaf of either: new types
+// ship under a new version byte and need a newer verifier.
 func Types() []string { return slices.Clone(types) }
 
 // TypeOf reads an activity's "type" through the same strict decode Parse
@@ -111,7 +126,7 @@ func foldRune(r rune) rune {
 }
 
 // ErrUnknownType means the served event's type is outside Types.
-var ErrUnknownType = errors.New("event type is outside leaf schema version 0x01's type list; a newer axt-verify is required")
+var ErrUnknownType = errors.New("event type is not one this axt-verify release knows; a newer axt-verify is required")
 
 // Event is what a verifier needs from one served event.
 type Event struct {
@@ -122,15 +137,46 @@ type Event struct {
 	// Index is the event's leaf index; nil when the event has no leaf
 	// (recorded while the organization had no active log).
 	Index *uint64
-	// Entry is the leaf entry: SchemaVersion || canonical JSON.
+	// Entry is the event's 0x02 entry: SchemaVersionV2 || canonical JSON
+	// over field set v2.
 	Entry []byte
+	// Legacy is the same event's 0x01 entry. nil when the event carries a
+	// user_profile_id: no 0x01 entry commits one.
+	Legacy []byte
+	// withheld is the 0x01 entry over the eleven keys of an event that
+	// carries a user_profile_id. Only RecordedFrom reads it, and RecordedFrom
+	// supplies no hash to an inclusion check.
+	withheld []byte
 }
 
-// Hash returns the RFC 6962 leaf hash of the entry.
+// Hash returns the RFC 6962 leaf hash of Entry.
 func (e Event) Hash() []byte { return rfc6962.DefaultHasher.HashLeaf(e.Entry) }
 
+// Hashes returns the leaf hashes the event can have in the log, in the
+// order to try them: Entry's, then Legacy's when there is one. Nothing
+// served says which version a leaf is, so the served event alone decides.
+func (e Event) Hashes() [][]byte {
+	hashes := [][]byte{e.Hash()}
+	if e.Legacy != nil {
+		hashes = append(hashes, rfc6962.DefaultHasher.HashLeaf(e.Legacy))
+	}
+	return hashes
+}
+
+// RecordedFrom reports whether any release of this tool, including one that
+// knew only 0x01, would have recorded the stored leaf hash from this serving.
+// It compares servings only: true says nothing about what the log holds.
+func (e Event) RecordedFrom(stored []byte) bool {
+	hashes := e.Hashes()
+	if e.withheld != nil {
+		hashes = append(hashes, rfc6962.DefaultHasher.HashLeaf(e.withheld))
+	}
+	return slices.ContainsFunc(hashes, func(h []byte) bool { return bytes.Equal(h, stored) })
+}
+
 // Parse projects one served event — a JSON object as it appears in the
-// activity feed's data array or a SIEM export of it — onto field set v1.
+// activity feed's data array or a SIEM export of it — onto field set v2,
+// and onto field set v1 as well when it carries no user_profile_id.
 // Served bytes that are ambiguous about a projected value are refused, not
 // resolved: a repeated member name, a name differing from a projected one
 // only in case, or a string the JSON decoder would repair. Resolving one
@@ -186,15 +232,30 @@ func Parse(served []byte) (Event, error) {
 			return Event{}, fmt.Errorf("resource_details.%w", err)
 		}
 	}
+	if r.userProfileID, err = optString(top, UserProfileIDKey); err != nil {
+		return Event{}, err
+	}
 	idx, err := index(top)
 	if err != nil {
 		return Event{}, err
 	}
-	j := r.render()
-	entry := make([]byte, 0, 1+len(j))
-	entry = append(entry, SchemaVersion)
-	entry = append(entry, j...)
-	return Event{ID: deref(r.id), OrganizationUUID: deref(r.organizationUUID), Index: idx, Entry: entry}, nil
+	return r.event(idx), nil
+}
+
+// event frames the record's two entries.
+func (r record) event(idx *uint64) Event {
+	ev := Event{ID: deref(r.id), OrganizationUUID: deref(r.organizationUUID), Index: idx}
+	ev.Entry = frame(SchemaVersionV2, r.renderV2())
+	if legacy := frame(SchemaVersion, r.render()); r.userProfileID == nil {
+		ev.Legacy = legacy
+	} else {
+		ev.withheld = legacy
+	}
+	return ev
+}
+
+func frame(version byte, j []byte) []byte {
+	return append([]byte{version}, j...)
 }
 
 type record struct {
@@ -204,6 +265,9 @@ type record struct {
 	reasonCode                       *string
 	actor                            *actorRecord
 	resource                         *resourceRecord
+	// userProfileID is nil for an event with none; a null served value
+	// reads as absent.
+	userProfileID *string
 }
 
 type actorRecord struct{ typ *string }
@@ -275,6 +339,76 @@ func (r record) render() []byte {
 	return b.Bytes()
 }
 
+// renderV2 emits field set v2: v1's eleven keys plus, for an event that has
+// one, user_profile_id in its code-point position between type and
+// workspace_id. There is no null user_profile_id. A separate renderer on
+// purpose: a released version's renderer is never edited.
+func (r record) renderV2() []byte {
+	var b bytes.Buffer
+	b.WriteByte('{')
+
+	writeKey(&b, "accessed_at", false)
+	writeOpt(&b, r.accessedAt)
+
+	writeKey(&b, "accessor_department", true)
+	writeOpt(&b, r.accessorDepartment)
+
+	// email_address is fixed null under 0x02 whatever the served record
+	// shows: no entry commits an email address.
+	writeKey(&b, "actor", true)
+	if r.actor != nil {
+		b.WriteString(`{"email_address":null,"type":`)
+		writeOpt(&b, r.actor.typ)
+		b.WriteByte('}')
+	} else {
+		b.WriteString("null")
+	}
+
+	writeKey(&b, "created_at", true)
+	writeOpt(&b, r.createdAt)
+
+	writeKey(&b, "id", true)
+	writeOpt(&b, r.id)
+
+	writeKey(&b, "organization_id", true)
+	writeOpt(&b, r.organizationID)
+
+	writeKey(&b, "organization_uuid", true)
+	writeOpt(&b, r.organizationUUID)
+
+	writeKey(&b, "reason_code", true)
+	writeOpt(&b, r.reasonCode)
+
+	writeKey(&b, "resource_details", true)
+	if r.resource != nil {
+		b.WriteByte('{')
+		writeKey(&b, "id", false)
+		writeOpt(&b, r.resource.id)
+		// parent is reserved and always null under 0x02.
+		writeKey(&b, "parent", true)
+		b.WriteString("null")
+		writeKey(&b, "type", true)
+		writeOpt(&b, r.resource.typ)
+		b.WriteByte('}')
+	} else {
+		b.WriteString("null")
+	}
+
+	writeKey(&b, "type", true)
+	writeOpt(&b, r.typ)
+
+	if r.userProfileID != nil {
+		writeKey(&b, UserProfileIDKey, true)
+		writeString(&b, *r.userProfileID)
+	}
+
+	writeKey(&b, "workspace_id", true)
+	writeOpt(&b, r.workspaceID)
+
+	b.WriteByte('}')
+	return b.Bytes()
+}
+
 func writeKey(b *bytes.Buffer, key string, comma bool) {
 	if comma {
 		b.WriteByte(',')
@@ -331,7 +465,7 @@ var (
 	topKeys = []string{
 		"accessed_at", "accessor_department", "actor", "created_at", "id",
 		"organization_id", "organization_uuid", "reason_code", "resource_details",
-		"type", "workspace_id", IndexKey,
+		"type", "workspace_id", IndexKey, UserProfileIDKey,
 	}
 	actorKeys    = []string{"email_address", "type"}
 	resourceKeys = []string{"id", "parent", "type"}
