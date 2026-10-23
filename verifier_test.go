@@ -4,11 +4,13 @@
 package axtverify_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -99,7 +101,8 @@ func (e *env) logged(n int) []json.RawMessage {
 		if err != nil {
 			e.t.Fatal(err)
 		}
-		if got := e.log.Append(ev.Entry); got != idx {
+		// The 0x01 entry: the only leaf any log writes when this release ships.
+		if got := e.log.Append(ev.Legacy); got != idx {
 			e.t.Fatalf("appended at %d, want %d", got, idx)
 		}
 		e.srv.Events = append(e.srv.Events, raw)
@@ -184,6 +187,280 @@ func TestRun_TamperedServedEventFails(t *testing.T) {
 	rep, _ = e.run()
 	if len(rep.Events.Failed) != 1 {
 		t.Fatalf("rerun: %+v", rep.Events)
+	}
+}
+
+// withUserProfileID returns the served event with user_profile_id set, or
+// removed when id is nil.
+func withUserProfileID(t *testing.T, raw json.RawMessage, id *string) json.RawMessage {
+	t.Helper()
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	delete(m, leaf.UserProfileIDKey)
+	if id != nil {
+		m[leaf.UserProfileIDKey] = *id
+	}
+	out, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func mustParse(t *testing.T, raw json.RawMessage) leaf.Event {
+	t.Helper()
+	ev, err := leaf.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ev
+}
+
+// An event with no user_profile_id verifies against a 0x02 leaf or a 0x01
+// leaf; one with a user_profile_id only against the 0x02 leaf that commits
+// that id. So an id stripped, altered, or added fails whichever leaf the log
+// holds.
+func TestRun_LeafVersions(t *testing.T) {
+	id, other, empty := "uprof_01H7Z9W1CEpdPaGUP2rbg1XD", "uprof_01PaGUP2rbg1XDh7Z9W1CEpd", ""
+	for name, tc := range map[string]struct {
+		logged *string // user_profile_id the log committed
+		legacy bool    // the log holds the 0x01 entry
+		served *string // user_profile_id the feed serves
+		ok     bool
+	}{
+		"0x02 leaf, no id":        {ok: true},
+		"0x01 leaf, no id":        {legacy: true, ok: true},
+		"0x02 leaf, id":           {logged: &id, served: &id, ok: true},
+		"id stripped":             {logged: &id},
+		"id altered":              {logged: &id, served: &other},
+		"id added to a 0x02 leaf": {served: &id},
+		"id added to a 0x01 leaf": {legacy: true, served: &id},
+		// The empty string is a value: it must be committed to be served.
+		"0x02 leaf, empty id":           {logged: &empty, served: &empty, ok: true},
+		"empty id added to a 0x01 leaf": {legacy: true, served: &empty},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t)
+			idx := e.log.Size()
+			raw := e.served(&idx)
+			ev := mustParse(t, withUserProfileID(t, raw, tc.logged))
+			entry := ev.Entry
+			if tc.legacy {
+				entry = ev.Legacy
+			}
+			if entry == nil {
+				t.Fatal("this case logs an entry the event does not have")
+			}
+			e.log.Append(entry)
+			e.srv.Events = append(e.srv.Events, withUserProfileID(t, raw, tc.served))
+			e.srv.Publish()
+
+			rep, err := e.run()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := e.srv.Requests["inclusion"]; got != 1 {
+				t.Fatalf("%d inclusion requests for one event, want 1 however many hashes are tried", got)
+			}
+			if tc.ok {
+				if !rep.OK() || rep.Events.Verified != 1 {
+					t.Fatalf("report: %+v", rep.Events)
+				}
+				return
+			}
+			if rep.Events.Verified != 0 || len(rep.Events.Failed) != 1 || !strings.Contains(rep.Events.Failed[0].Reason, "not what the log committed") {
+				t.Fatalf("report: %+v", rep.Events)
+			}
+		})
+	}
+}
+
+// When no hash binds, the failure reports every tried hash's mismatch, in the
+// order tried.
+func TestRun_FailureReportsEveryTriedHashsMismatch(t *testing.T) {
+	e := newEnv(t)
+	idx := e.log.Size()
+	raw := e.served(&idx)
+	id := "uprof_01H7Z9W1CEpdPaGUP2rbg1XD"
+	e.log.Append(mustParse(t, withUserProfileID(t, raw, &id)).Entry) // the log committed an id
+	e.srv.Events = append(e.srv.Events, raw)                         // served without it: two hashes, neither binds
+	e.srv.Publish()
+	rep, err := e.run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	size := e.log.Size()
+	cp, err := e.v.Checkpoints.Verify(e.log.Checkpoint(size))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hashes := mustParse(t, raw).Hashes()
+	first := checkpoint.VerifyInclusion(cp, idx, hashes[0], e.log.InclusionProof(idx, size))
+	second := checkpoint.VerifyInclusion(cp, idx, hashes[1], e.log.InclusionProof(idx, size))
+	if first == nil || second == nil || first.Error() == second.Error() {
+		t.Fatalf("the two hashes' mismatches do not differ: %v / %v", first, second)
+	}
+	if want := first.Error() + "; " + second.Error(); len(rep.Events.Failed) != 1 || !strings.HasSuffix(rep.Events.Failed[0].Reason, want) {
+		t.Fatalf("report: %+v\nwant the reason to end: %s", rep.Events, want)
+	}
+}
+
+// A pending entry recorded by a release that knew only 0x01 holds that
+// entry's hash alone. The same serving must still read as the same serving,
+// and verify once a checkpoint covers it.
+func TestRun_PendingRecordedByA0x01OnlyRelease(t *testing.T) {
+	e := newEnv(t)
+	e.logged(1)
+	e.srv.Publish()
+	idx := e.log.Size()
+	raw := e.served(&idx)
+	ev := mustParse(t, raw)
+	e.log.Append(ev.Legacy) // sequenced; no checkpoint covers it yet
+	e.srv.Events = append(e.srv.Events, raw)
+	e.st.Feed.Pending = map[string]axtverify.PendingEvent{
+		ev.ID: {Index: idx, LeafHash: ev.Hashes()[1], FirstSeen: e.clock},
+	}
+
+	if rep := e.mustRun(); len(rep.Events.Pending) != 1 {
+		t.Fatalf("still uncovered: %+v", rep.Events)
+	}
+	// A release that knows 0x02 rewrites the entry with both of the serving's hashes.
+	if got := e.st.Feed.Pending[ev.ID]; !bytes.Equal(got.LeafHash, ev.Hashes()[0]) || !bytes.Equal(got.LegacyLeafHash, ev.Hashes()[1]) {
+		t.Fatalf("pending entry after the pass: %+v", got)
+	}
+	e.srv.Publish()
+	if rep := e.mustRun(); rep.Events.Verified != 1 || len(e.st.Feed.Pending) != 0 {
+		t.Fatalf("covered: %+v state=%+v", rep.Events, e.st.Feed)
+	}
+}
+
+// A done record vouches only for the serving's own hashes. An event that a
+// 0x01-only release verified and that is now served with a user_profile_id
+// its 0x01 leaf does not commit goes back through the inclusion check, and
+// fails it.
+func TestRun_DoneRecordDoesNotVouchForAnAddedUserProfileID(t *testing.T) {
+	e := newEnv(t)
+	idx := e.log.Size()
+	raw := e.served(&idx)
+	noID := mustParse(t, raw)
+	e.log.Append(noID.Legacy)
+	id := "uprof_01H7Z9W1CEpdPaGUP2rbg1XD"
+	e.srv.Events = append(e.srv.Events, withUserProfileID(t, raw, &id))
+	e.srv.Publish()
+	e.st.Feed.Done = map[string]axtverify.DoneEvent{
+		noID.ID: {CreatedAt: t0.Add(time.Hour), RecordedAt: e.clock, Index: &idx, LeafHash: noID.Hashes()[1]},
+	}
+	rep, err := e.run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Events.Failed) != 1 || !strings.Contains(rep.Events.Failed[0].Reason, "not what the log committed") {
+		t.Fatalf("report: %+v", rep.Events)
+	}
+}
+
+// lateUpgrade sets up an event that a 0x01-only release recorded as pending
+// and that is now served with a user_profile_id: the stored hash is the 0x01
+// hash over the eleven keys, which that release recorded whatever else the
+// event carried.
+func lateUpgrade(t *testing.T) (e *env, idx uint64, noID, withID leaf.Event) {
+	t.Helper()
+	e = newEnv(t)
+	e.logged(1)
+	e.srv.Publish()
+	idx = e.log.Size()
+	raw := e.served(&idx)
+	id := "uprof_01H7Z9W1CEpdPaGUP2rbg1XD"
+	served := withUserProfileID(t, raw, &id)
+	noID, withID = mustParse(t, raw), mustParse(t, served)
+	e.srv.Events = append(e.srv.Events, served)
+	e.st.Feed.Pending = map[string]axtverify.PendingEvent{
+		noID.ID: {Index: idx, LeafHash: noID.Hashes()[1], FirstSeen: e.clock.Add(-time.Hour)},
+	}
+	return e, idx, noID, withID
+}
+
+func TestRun_LateUpgrade_PendingEventWithAUserProfileIDSettles(t *testing.T) {
+	e, _, noID, withID := lateUpgrade(t)
+	e.log.Append(withID.Entry) // the log committed the id
+	e.srv.Publish()
+	rep := e.mustRun()
+	if _, done := e.st.Feed.Done[noID.ID]; !done || len(e.st.Feed.Pending) != 0 {
+		t.Fatalf("report: %+v state=%+v", rep.Events, e.st.Feed)
+	}
+}
+
+// The older release's hash only answers "same serving?". While the serving is
+// in hand it is never an inclusion candidate: a 0x01 leaf under an event
+// served with an id still fails.
+func TestRun_LateUpgrade_AnIDTheLeafDoesNotCommitStillFails(t *testing.T) {
+	e, _, noID, _ := lateUpgrade(t)
+	e.log.Append(noID.Legacy) // the log did not commit the id
+	e.srv.Publish()
+	rep, err := e.run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Events.Failed) != 1 || !strings.Contains(rep.Events.Failed[0].Reason, "not what the log committed") {
+		t.Fatalf("report: %+v", rep.Events)
+	}
+}
+
+func TestRun_LateUpgrade_StillPendingIsNotServedDifferently(t *testing.T) {
+	e, _, noID, withID := lateUpgrade(t)
+	e.log.Append(withID.Entry) // sequenced; no checkpoint covers it yet
+	first := e.st.Feed.Pending[noID.ID].FirstSeen
+	if rep := e.mustRun(); len(rep.Events.Pending) != 1 {
+		t.Fatalf("report: %+v", rep.Events)
+	}
+	got := e.st.Feed.Pending[noID.ID]
+	if !bytes.Equal(got.LeafHash, withID.Hashes()[0]) || len(got.LegacyLeafHash) != 0 || !got.FirstSeen.Equal(first) {
+		t.Fatalf("pending entry after the pass: %+v", got)
+	}
+}
+
+// A pending entry a release that knows 0x02 wrote for an event with no id
+// holds both hashes. Only its leaf_hash is compared: were legacy_leaf_hash
+// compared too, it would match the 0x01 view of a serving that now carries an
+// id, and an id added while the event waited would pass.
+func TestRun_AnIDAddedToAPendingEventIsServedDifferently(t *testing.T) {
+	e, idx, noID, withID := lateUpgrade(t)
+	e.st.Feed.Pending[noID.ID] = axtverify.PendingEvent{Index: idx, LeafHash: noID.Hashes()[0], LegacyLeafHash: noID.Hashes()[1], FirstSeen: e.clock.Add(-time.Hour)}
+	e.log.Append(withID.Entry) // the log commits what is now served
+	e.srv.Publish()
+	rep, err := e.run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Events.Failed) != 1 || !strings.Contains(rep.Events.Failed[0].Reason, "differs from it") {
+		t.Fatalf("report: %+v", rep.Events)
+	}
+}
+
+// A pending event the feed does not list again is verified from the hashes
+// the record holds: both of them, or the one a 0x01-only release wrote.
+func TestRun_UnlistedPendingVerifiesFromTheRecord(t *testing.T) {
+	for name, both := range map[string]bool{"two hashes": true, "the 0x01 hash alone": false} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t)
+			e.logged(1)
+			e.srv.Publish()
+			idx := e.log.Size()
+			ev := mustParse(t, e.served(&idx)) // never added to the feed
+			e.log.Append(ev.Legacy)
+			pe := axtverify.PendingEvent{Index: idx, LeafHash: ev.Hashes()[1], FirstSeen: e.clock}
+			if both {
+				pe.LeafHash, pe.LegacyLeafHash = ev.Hashes()[0], ev.Hashes()[1]
+			}
+			e.st.Feed.Pending = map[string]axtverify.PendingEvent{ev.ID: pe}
+			e.srv.Publish()
+			rep := e.mustRun()
+			if _, done := e.st.Feed.Done[ev.ID]; !done || len(e.st.Feed.Pending) != 0 {
+				t.Fatalf("report: %+v state=%+v", rep.Events, e.st.Feed)
+			}
+		})
 	}
 }
 
@@ -395,7 +672,7 @@ func TestRun_LaterServingCannotRideOnAnEarlierSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		idx := e.log.Append(ev.Entry)
+		idx := e.log.Append(ev.Legacy)
 		e.srv.Events[1] = json.RawMessage(strings.Replace(string(raw), `"`+IndexKey+`":null`, fmt.Sprintf(`"%s":%d`, IndexKey, idx), 1))
 		e.srv.Publish()
 		e.clock = e.clock.Add(time.Hour)
@@ -426,7 +703,7 @@ func TestRun_FutureCreatedAtCannotEmptyTheWindow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.log.Append(ev.Entry)
+	e.log.Append(ev.Legacy)
 	e.srv.Events = append(e.srv.Events, raw)
 	e.srv.Publish()
 
@@ -554,7 +831,7 @@ func TestRun_BackdatedCreatedAtKeepsTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.log.Append(ev.Entry)
+	e.log.Append(ev.Legacy)
 	e.srv.Events = append(e.srv.Events, raw)
 	e.srv.Publish()
 
@@ -1264,6 +1541,33 @@ func TestState_RoundTripAndOriginGuard(t *testing.T) {
 	}
 	if _, err := axtverify.LoadState(path, "axt.anthropic.com/00000000-0000-0000-0000-000000000000"); err == nil {
 		t.Fatal("state accepted for another origin")
+	}
+}
+
+// A state file as a 0x01-only release writes it loads with its version
+// unchanged, and the second hash a later release records round-trips.
+func TestState_FileFromA0x01OnlyReleaseLoads(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "s.json")
+	older := `{"version":1,"origin":"` + origin + `","feed":{"pending":{"activity_a":{"leaf_index":3,"leaf_hash":"AQID","first_seen":"2026-08-01T00:00:00Z"}}}}`
+	if err := os.WriteFile(path, []byte(older), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err := axtverify.LoadState(path, origin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pe := st.Feed.Pending["activity_a"]
+	pe.LegacyLeafHash = []byte{4, 5, 6}
+	st.Feed.Pending["activity_a"] = pe
+	if err := st.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	back, err := axtverify.LoadState(path, origin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := back.Feed.Pending["activity_a"]; back.Version != 1 || got.Index != 3 || !bytes.Equal(got.LeafHash, []byte{1, 2, 3}) || !bytes.Equal(got.LegacyLeafHash, []byte{4, 5, 6}) {
+		t.Fatalf("round trip: version %d, pending %+v", back.Version, got)
 	}
 }
 

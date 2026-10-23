@@ -95,6 +95,16 @@ key, so pass such a file with `--from-trusted`, which takes its tree size and
 root hash as your own record without checking the signature. The origin is
 still enforced.
 
+**Leaf field sets also ship by release.** The log commits each event under a
+numbered set of fields (see *How verification works*), and a release can
+rebuild only the sets that existed when it was cut. This release rebuilds v1
+and v2; the log may begin writing v2 at any time after this release. A release
+older than the log's newest set reports every event written under it as "not
+what the log committed", whether or not the event carries a newer field. If
+every event after some date fails that way, install the latest release and run
+again until a pass completes without reporting truncation; a failure that
+survives that is a security finding.
+
 ## Commands
 
 | Command | What it does |
@@ -131,7 +141,7 @@ Schedule it — hourly is reasonable — and alert on the exit status:
 | Exit | Meaning | Action |
 |---|---|---|
 | **0** | Nothing failed. Events served with no leaf, and — under `run` — events still awaiting a checkpoint, are reported rather than verified — see *Event outcomes*. | — |
-| **1** | **Verification failed**: a bad signature, wrong origin, a log that shrank or forked, an invalid proof, or an event whose served content is not what the log committed. | Treat as a security finding. Keep the state file and the output; contact Anthropic. |
+| **1** | **Verification failed**: a bad signature, wrong origin, a log that shrank or forked, an invalid proof, or an event whose served content is not what the log committed. | If every event after some date fails as "not what the log committed", first rule out an old release (*Leaf field sets also ship by release*). If that is not the cause, and for any other failure, treat it as a security finding. Keep the state file and the output; contact Anthropic. |
 | **2** | Usage error. | Fix the invocation. |
 | **3** | Could not complete: network failure, API errors, rate limiting after retries, or an `events` file holding an index the log has published no checkpoint for, or no proof for one it published while the check waited. | Rerun; page only if it persists. |
 
@@ -248,15 +258,21 @@ on that log staying reachable.
   (`GET …/transparency_log/consistency?from=N`). Checkpoints that arrive
   embedded in proof responses mid-run are linked into the same history the same
   way before anything is verified against them.
-- **Inclusion.** Each served event is projected onto leaf field set v1 —
-  eleven keys, RFC 8785 canonical JSON, prefixed with the version byte `0x01` —
-  exactly as the Compliance API reference's *Leaf canonicalization* section
-  specifies; `leaf/` is that specification in code and is tested against the
-  log's own golden vectors. The leaf hash and the audit path from
+- **Inclusion.** Each served event is projected onto a leaf field set, as
+  RFC 8785 canonical JSON behind a version byte. Field set v1 (`0x01`) is
+  eleven keys, exactly as the Compliance API reference's *Leaf
+  canonicalization* section specifies; `leaf/`'s v1 renderer is that
+  specification in code and is tested against the log's own golden vectors.
+  Field set v2 (`0x02`) is the same eleven keys plus `user_profile_id` when
+  the event has one. An event that carries a `user_profile_id` is checked as
+  the `0x02` leaf with that key and as nothing else, so an id added to, removed
+  from or altered in a served event fails. Any other event is checked as a `0x02` leaf first and
+  then as a `0x01` leaf, and a match with either verifies it: both commit the
+  same eleven values. The leaf hash and the audit path from
   `GET …/transparency_log/inclusion?leaf_index=N` must reproduce the signed
-  root. An event type outside v1's list (`anthropic_access`, `cmek_preserve`)
-  is refused: new types ship under a new version byte and need a newer
-  `axt-verify`.
+  root. An event type outside the two versions' shared list
+  (`anthropic_access`, `cmek_preserve`) is refused: new types ship under a
+  new version byte and need a newer `axt-verify`.
 - **Nothing from the API is trusted** until it verifies against the key this
   release carries: not the checkpoint, not the proofs, not the leaf index.
 
@@ -282,6 +298,9 @@ on that log staying reachable.
 - Deleting the state file re-baselines the next run: it starts from whatever
   checkpoint the log serves (exit 0) and can detect no rollback that run. Keep
   an archived note (`--save`, handed back with `--from`) as the durable anchor.
+- A state file a newer release has written is not for an older one: the older
+  release reads the newer leaf hashes as changed content and fails every event
+  that was awaiting a checkpoint.
 - The Compliance Access Key is read from `$ANTHROPIC_COMPLIANCE_ACCESS_KEY` and
   grants read access to all of your organization's compliance activities. A
   process running as the same user can read the cron's environment; scope that

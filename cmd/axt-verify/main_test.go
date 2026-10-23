@@ -59,7 +59,7 @@ func setupAt(t *testing.T, logOrigin string) *fixture {
 		if err != nil {
 			t.Fatal(err)
 		}
-		l.Append(ev.Entry)
+		l.Append(ev.Legacy) // the 0x01 entry: the only leaf any log writes when this release ships
 		srv.Events = append(srv.Events, raw)
 		f.events = append(f.events, raw)
 	}

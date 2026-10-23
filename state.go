@@ -56,9 +56,9 @@ type DoneEvent struct {
 	CreatedAt time.Time `json:"created_at"`
 	// Index is the verified leaf index; nil for an event served with no leaf.
 	Index *uint64 `json:"leaf_index"`
-	// LeafHash is the leaf hash that verified, so a re-listing of the same
-	// id inside the overlap window is checked against it rather than
-	// trusted.
+	// LeafHash is a leaf hash of the serving that verified (its first, or the
+	// one an older pending record held), so a re-listing of the same id inside
+	// the overlap window is checked against it rather than trusted.
 	LeafHash []byte `json:"leaf_hash,omitempty"`
 	// RecordedAt is when this pass verified the event, by the verifier's own
 	// clock. Retention keys on it rather than on the served created_at,
@@ -67,13 +67,25 @@ type DoneEvent struct {
 	RecordedAt time.Time `json:"recorded_at,omitzero"`
 }
 
-// PendingEvent is an event awaiting a covering checkpoint. LeafHash lets a
-// later run verify it without re-reading the event.
+// PendingEvent is an event awaiting a covering checkpoint. Its leaf hashes
+// let a later run verify it without re-reading the event.
 type PendingEvent struct {
-	Index     uint64    `json:"leaf_index"`
-	LeafHash  []byte    `json:"leaf_hash"`
-	CreatedAt time.Time `json:"created_at,omitzero"`
-	FirstSeen time.Time `json:"first_seen"`
+	Index    uint64 `json:"leaf_index"`
+	LeafHash []byte `json:"leaf_hash"`
+	// LegacyLeafHash is the hash of the event's 0x01 entry; empty for an
+	// event that has none (leaf.Event.Legacy), and in an entry a 0x01-only
+	// release wrote, whose LeafHash is that hash.
+	LegacyLeafHash []byte    `json:"legacy_leaf_hash,omitempty"`
+	CreatedAt      time.Time `json:"created_at,omitzero"`
+	FirstSeen      time.Time `json:"first_seen"`
+}
+
+// hashes returns the recorded leaf hashes in the order to try them.
+func (e PendingEvent) hashes() [][]byte {
+	if len(e.LegacyLeafHash) == 0 {
+		return [][]byte{e.LeafHash}
+	}
+	return [][]byte{e.LeafHash, e.LegacyLeafHash}
 }
 
 // LoadState reads path; a missing file yields an empty state for origin.
